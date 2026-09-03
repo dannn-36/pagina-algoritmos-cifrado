@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Criptoanálisis · César / Afín / Vigenère</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="frame">
+
+  <aside class="rail">
+    <div class="rail-top">
+      <div class="mark">CR·27</div>
+      <p class="rail-sub">Banco de pruebas de criptoanálisis clásico</p>
+    </div>
+
+    <nav class="steps" id="stepNav">
+      <button class="step active" data-panel="panel-entrada">
+        <span class="step-n">01</span>
+        <span class="step-label">Texto y normalización</span>
+      </button>
+      <button class="step" data-panel="panel-cifrar">
+        <span class="step-n">02</span>
+        <span class="step-label">Cifrar / validar</span>
+      </button>
+      <button class="step" data-panel="panel-ic">
+        <span class="step-n">03</span>
+        <span class="step-label">Índice de coincidencia</span>
+      </button>
+      <button class="step" data-panel="panel-frecuencias">
+        <span class="step-n">04</span>
+        <span class="step-label">Frecuencias</span>
+      </button>
+      <button class="step" data-panel="panel-cesar">
+        <span class="step-n">05a</span>
+        <span class="step-label">Ataque · César</span>
+      </button>
+      <button class="step" data-panel="panel-afin">
+        <span class="step-n">05b</span>
+        <span class="step-label">Ataque · Afín</span>
+      </button>
+      <button class="step" data-panel="panel-vigenere">
+        <span class="step-n">05c</span>
+        <span class="step-label">Ataque · Vigenère</span>
+      </button>
+    </nav>
+
+    <div class="rail-bottom">
+      <p>Alfabeto: A–Z + Ñ (27)</p>
+      <p>mod 27 · sin espacios/tildes</p>
+    </div>
+  </aside>
+
+  <main class="stage">
+
+    <!-- 01 ENTRADA -->
+    <section class="panel active" id="panel-entrada">
+      <header class="panel-head">
+        <h1>Texto de trabajo</h1>
+        <p>Pega el criptograma (o el texto original) y normalízalo: mayúsculas, sin tildes, sin espacios ni puntuación, solo A–Z y Ñ.</p>
+      </header>
+
+      <div class="grid-2">
+        <div class="field">
+          <label for="rawInput">Texto de entrada</label>
+          <textarea id="rawInput" rows="9" placeholder="Pega aquí el texto original o el criptograma..."></textarea>
+          <button class="btn" id="btnNormalize">Normalizar</button>
+        </div>
+        <div class="field">
+          <label>Texto normalizado <span class="tag" id="lenTag">0 car.</span></label>
+          <textarea id="normOutput" rows="9" readonly placeholder="El resultado normalizado aparece aquí..."></textarea>
+          <button class="btn btn-ghost" id="btnUseAsCipher">Usar como criptograma en los siguientes pasos →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 CIFRAR / VALIDAR -->
+    <section class="panel" id="panel-cifrar">
+      <header class="panel-head">
+        <h1>Cifrar y validar</h1>
+        <p>Cifra el texto normalizado con los parámetros conocidos y compáralo contra el criptograma esperado, para validar que tu implementación coincide con la de la guía.</p>
+      </header>
+
+      <div class="field">
+        <label>Método</label>
+        <div class="method-tabs" id="cifrarMethodTabs">
+          <button class="mtab active" data-method="cesar">César</button>
+          <button class="mtab" data-method="afin">Afín</button>
+          <button class="mtab" data-method="vigenere">Vigenère</button>
+        </div>
+      </div>
+
+      <div class="grid-3" id="cifrarParams">
+        <div class="field param-cesar">
+          <label for="cesarK">Desplazamiento k (0–26)</label>
+          <input type="number" id="cesarK" min="0" max="26" value="11">
+        </div>
+        <div class="field param-afin" style="display:none">
+          <label for="afinA">a (coprimo con 27)</label>
+          <input type="number" id="afinA" value="5">
+        </div>
+        <div class="field param-afin" style="display:none">
+          <label for="afinB">b</label>
+          <input type="number" id="afinB" value="7">
+        </div>
+        <div class="field param-vigenere" style="display:none">
+          <label for="vigenereKey">Clave</label>
+          <input type="text" id="vigenereKey" value="NUBE">
+        </div>
+      </div>
+
+      <button class="btn" id="btnEncrypt">Cifrar texto normalizado</button>
+
+      <div class="grid-2">
+        <div class="field">
+          <label>Resultado obtenido</label>
+          <textarea id="encryptOutput" rows="6" readonly></textarea>
+        </div>
+        <div class="field">
+          <label>Criptograma esperado (pegar para comparar)</label>
+          <textarea id="expectedCipher" rows="6" placeholder="Pega aquí el criptograma de la guía..."></textarea>
+        </div>
+      </div>
+      <div class="verdict" id="validateVerdict"></div>
+    </section>
+
+    <!-- 03 IC -->
+    <section class="panel" id="panel-ic">
+      <header class="panel-head">
+        <h1>Índice de coincidencia</h1>
+        <p>El IC estima qué tan cerca está la distribución de letras del criptograma de un idioma natural. Un valor alto sugiere un cifrado monoalfabético (César o Afín); un valor bajo sugiere un cifrado polialfabético (Vigenère).</p>
+      </header>
+
+      <div class="field">
+        <label>Criptograma a diagnosticar</label>
+        <textarea id="icInput" rows="7" placeholder="Pega el criptograma normalizado..."></textarea>
+        <button class="btn" id="btnCalcIC">Calcular IC</button>
+      </div>
+
+      <div class="ic-readout">
+        <div class="ic-number" id="icValue">—</div>
+        <div class="ic-scale">
+          <div class="ic-scale-track">
+            <div class="ic-scale-fill" id="icFill"></div>
+            <div class="ic-marker" style="left:38%"><span>0.038–0.045<br>Vigenère</span></div>
+            <div class="ic-marker" style="left:77%"><span>≈0.077<br>César / Afín (ES)</span></div>
+          </div>
+        </div>
+        <div class="ic-verdict" id="icVerdict">Pega un texto y calcula el IC para ver el diagnóstico.</div>
+      </div>
+    </section>
+
+    <!-- 04 FRECUENCIAS -->
+    <section class="panel" id="panel-frecuencias">
+      <header class="panel-head">
+        <h1>Conteo de frecuencias</h1>
+        <p>Compara la frecuencia local del criptograma contra el español de referencia. Las barras azules son el criptograma; la línea es la referencia.</p>
+      </header>
+
+      <div class="field">
+        <label>Criptograma</label>
+        <textarea id="freqInput" rows="6" placeholder="Pega el criptograma normalizado..."></textarea>
+        <button class="btn" id="btnCalcFreq">Calcular frecuencias</button>
+      </div>
+
+      <div id="freqChart" class="freq-chart"></div>
+      <div id="freqTop" class="freq-top"></div>
+    </section>
+
+    <!-- 05a CESAR -->
+    <section class="panel" id="panel-cesar">
+      <header class="panel-head">
+        <h1>Ataque por fuerza bruta · César</h1>
+        <p>Solo hay 27 desplazamientos posibles. Se prueban todos y se ordenan por cercanía estadística al español (chi-cuadrado, menor es mejor).</p>
+      </header>
+
+      <div class="field">
+        <label>Criptograma</label>
+        <textarea id="cesarInput" rows="6" placeholder="Pega el criptograma normalizado..."></textarea>
+        <button class="btn" id="btnBruteCesar">Probar los 27 desplazamientos</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="results-table" id="cesarResults">
+          <thead><tr><th>k</th><th>Puntaje χ²</th><th>Texto candidato</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 05b AFIN -->
+    <section class="panel" id="panel-afin">
+      <header class="panel-head">
+        <h1>Ataque por análisis de frecuencias · Afín</h1>
+        <p>Identifica las dos letras más frecuentes del criptograma, asígnalas a dos letras probables del texto claro (por defecto E y A en español) y resuelve el sistema para hallar a y b.</p>
+      </header>
+
+      <div class="field">
+        <label>Criptograma</label>
+        <textarea id="afinInput" rows="6" placeholder="Pega el criptograma normalizado..."></textarea>
+        <button class="btn" id="btnAfinFreq">Ver frecuencias del criptograma</button>
+      </div>
+
+      <div id="afinFreqTable" class="freq-mini"></div>
+
+      <div class="grid-4">
+        <div class="field">
+          <label for="afinC1">Letra cifrada más frecuente</label>
+          <select id="afinC1"></select>
+        </div>
+        <div class="field">
+          <label for="afinP1">↦ corresponde a</label>
+          <select id="afinP1"></select>
+        </div>
+        <div class="field">
+          <label for="afinC2">2.ª letra cifrada más frecuente</label>
+          <select id="afinC2"></select>
+        </div>
+        <div class="field">
+          <label for="afinP2">↦ corresponde a</label>
+          <select id="afinP2"></select>
+        </div>
+      </div>
+
+      <button class="btn" id="btnSolveAfin">Resolver a y b, descifrar</button>
+      <div class="verdict" id="afinVerdict"></div>
+      <div class="field">
+        <label>Texto descifrado</label>
+        <textarea id="afinOutput" rows="6" readonly></textarea>
+      </div>
+    </section>
+
+    <!-- 05c VIGENERE -->
+    <section class="panel" id="panel-vigenere">
+      <header class="panel-head">
+        <h1>Método de Kasiski · Vigenère</h1>
+        <p>Se buscan secuencias repetidas de 3 a 5 letras y se factorizan las distancias entre repeticiones para estimar la longitud de clave L. Luego cada una de las L columnas se resuelve como un César independiente.</p>
+      </header>
+
+      <div class="field">
+        <label>Criptograma</label>
+        <textarea id="vigInput" rows="6" placeholder="Pega el criptograma normalizado..."></textarea>
+        <button class="btn" id="btnKasiski">Ejecutar Kasiski</button>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label>Longitudes de clave candidatas (por frecuencia de factor)</label>
+          <div id="kasiskiFactors" class="factor-list"></div>
+        </div>
+        <div class="field">
+          <label for="vigKeyLen">Longitud de clave a usar (L)</label>
+          <input type="number" id="vigKeyLen" min="1" max="20" value="4">
+          <button class="btn" id="btnSolveVigenere">Resolver columnas y descifrar</button>
+        </div>
+      </div>
+
+      <div class="verdict" id="vigVerdict"></div>
+      <div class="field">
+        <label>Texto descifrado</label>
+        <textarea id="vigOutput" rows="6" readonly></textarea>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
