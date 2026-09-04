@@ -38,6 +38,8 @@ function modInverse(a, m) {
 }
 
 function affineEncrypt(text, a, b) {
+  a = ((a % N) + N) % N;
+  b = ((b % N) + N) % N;
   return text.split('').map(ch => {
     const idx = ALPHABET.indexOf(ch);
     if (idx === -1) return ch;
@@ -46,6 +48,8 @@ function affineEncrypt(text, a, b) {
 }
 
 function affineDecrypt(text, a, b) {
+  a = ((a % N) + N) % N;
+  b = ((b % N) + N) % N;
   const ainv = modInverse(a, N);
   if (ainv === null) return null;
   return text.split('').map(ch => {
@@ -194,9 +198,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (currentMethod === 'afin') {
       const a = parseInt(document.getElementById('afinA').value, 10);
       const b = parseInt(document.getElementById('afinB').value, 10);
-      if (gcd(a, N) !== 1) {
+      if (!Number.isInteger(a) || !Number.isInteger(b) || gcd(a, N) !== 1) {
         document.getElementById('encryptOutput').value = '';
-        setVerdict('validateVerdict', `a=${a} no es coprimo con 27 — elige otro valor.`, false);
+        setVerdict('validateVerdict', `a=${a} debe ser un entero coprimo con 27 y b=${b} debe ser un entero.`, false);
         return;
       }
       result = affineEncrypt(text, a, b);
@@ -320,6 +324,23 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('afinC2').innerHTML = cipherOptions;
     document.getElementById('afinC1').selectedIndex = 0;
     document.getElementById('afinC2').selectedIndex = 1;
+  });
+
+  document.getElementById('btnBruteAfin').addEventListener('click', () => {
+    const text = normalize(document.getElementById('afinInput').value);
+    const rows = [];
+    for (let a = 0; a < N; a++) {
+      if (gcd(a, N) !== 1) continue;
+      for (let b = 0; b < N; b++) {
+        const candidate = affineDecrypt(text, a, b);
+        rows.push({ a, b, score: chiSquare(candidate), candidate });
+      }
+    }
+    rows.sort((left, right) => left.score - right.score);
+    const tbody = document.querySelector('#afinResults tbody');
+    tbody.innerHTML = rows.map(row =>
+      `<tr><td>${row.a}</td><td>${row.b}</td><td>${row.score.toFixed(1)}</td><td class="wrap">${row.candidate.slice(0, 140)}</td></tr>`
+    ).join('');
   });
 
   document.getElementById('btnSolveAfin').addEventListener('click', () => {

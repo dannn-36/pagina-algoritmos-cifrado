@@ -208,6 +208,18 @@
 
       <div id="afinFreqTable" class="freq-mini"></div>
 
+      <div class="field">
+        <button class="btn" id="btnBruteAfin">Probar todas las claves Afín</button>
+        <p class="field-hint">Se prueban las 486 combinaciones válidas de a y b y se ordenan por chi-cuadrado.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="results-table" id="afinResults">
+          <thead><tr><th>a</th><th>b</th><th>Puntaje χ²</th><th>Texto candidato</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
       <div class="grid-4">
         <div class="field">
           <label for="afinC1">Letra cifrada más frecuente</label>
